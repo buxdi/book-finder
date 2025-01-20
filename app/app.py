@@ -166,6 +166,11 @@ def ratelimit_handler(e):
     return jsonify(error="Trop de requêtes. Veuillez réessayer plus tard."), 429
 
 if __name__ == '__main__':
-    # En mode développement
-    app.debug = True
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    # Configuration selon l'environnement
+    if Config.ENV == 'development':
+        app.run(debug=True, host='0.0.0.0', port=5002)
+    else:
+        # En production, utiliser le SSL et les paramètres de sécurité
+        app.run(host='0.0.0.0', 
+               port=int(os.getenv('PORT', 5002)),
+               ssl_context=Config.SSL_CONTEXT)

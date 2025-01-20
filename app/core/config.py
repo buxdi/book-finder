@@ -7,12 +7,24 @@ from datetime import timedelta
 class Config:
     """Configuration globale de l'application"""
     
-    # Configuration de l'application
-    DEBUG = os.getenv('FLASK_ENV') == 'development'
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+    # Configuration de l'environnement
+    ENV = os.getenv('FLASK_ENV', 'production')
+    DEBUG = ENV == 'development'
     
     # Configuration de sécurité
-    SESSION_COOKIE_SECURE = True
+    if ENV == 'development':
+        SECRET_KEY = 'dev-key-for-testing'
+        SSL_CONTEXT = None
+        SESSION_COOKIE_SECURE = False
+    else:
+        # En production, ces valeurs doivent être définies dans .env
+        SECRET_KEY = os.getenv('SECRET_KEY')
+        SSL_CERT_PATH = os.getenv('SSL_CERT_PATH')
+        SSL_KEY_PATH = os.getenv('SSL_KEY_PATH')
+        SSL_CONTEXT = (SSL_CERT_PATH, SSL_KEY_PATH) if SSL_CERT_PATH and SSL_KEY_PATH else 'adhoc'
+        SESSION_COOKIE_SECURE = True
+
+    # Configuration commune
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Strict'
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
@@ -46,8 +58,12 @@ class Config:
     RATELIMIT_STORAGE_URL = "memory://"
     
     # Configuration SSL/TLS
-    SSL_CERT_PATH = os.getenv('SSL_CERT_PATH')
-    SSL_KEY_PATH = os.getenv('SSL_KEY_PATH')
+    if ENV == 'development':
+        SSL_CERT_PATH = None
+        SSL_KEY_PATH = None
+    else:
+        SSL_CERT_PATH = os.getenv('SSL_CERT_PATH')
+        SSL_KEY_PATH = os.getenv('SSL_KEY_PATH')
     
     # Validation des entrées
     MAX_CONTENT_LENGTH = 1 * 1024 * 1024  # 1 MB max
