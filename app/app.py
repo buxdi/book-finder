@@ -5,7 +5,7 @@
 Application web Book Finder
 """
 
-from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect, url_for
 from flask_talisman import Talisman
 from flask_seasurf import SeaSurf
 from flask_limiter import Limiter
@@ -16,6 +16,7 @@ import bleach
 import logging
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
+import urllib.parse
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -102,24 +103,42 @@ def before_request():
     if request.is_secure or app.config['ENV'] == 'development':
         return
 
-    # Liste des hôtes autorisés
-    ALLOWED_HOSTS = {'book-finder.com', 'www.book-finder.com'}
+    # Liste des chemins autorisés pour la redirection
+    ALLOWED_PATHS = {'/', '/search', '/about', '/contact'}
     
     # Rediriger vers HTTPS en production de manière sécurisée
     if app.config['ENV'] == 'production':
-        if request.host not in ALLOWED_HOSTS:
+        if request.host not in app.config['ALLOWED_HOSTS']:
             app.logger.warning(f'Tentative d\'accès avec hôte non autorisé: {request.host}')
             return jsonify({"error": "Hôte non autorisé"}), 403
             
+        # Valider le chemin
+        if request.path not in ALLOWED_PATHS:
+            app.logger.warning(f'Tentative d\'accès à un chemin non autorisé: {request.path}')
+            return redirect('/', code=302)
+            
         app.logger.info(f'Redirection HTTPS pour {request.host}')
+        
         # Construction sécurisée de l'URL HTTPS
         secure_url = 'https://{}{}'.format(
             request.host,
             request.path
         )
+        
+        # Validation et nettoyage des paramètres de requête
         if request.query_string:
-            secure_url += '?' + request.query_string.decode('utf-8')
+            # Ne permettre que les paramètres autorisés
+            allowed_params = {'q', 'lang', 'page', 'sort'}
+            query_params = request.args.copy()
+            cleaned_params = {
+                k: bleach.clean(v) 
+                for k, v in query_params.items() 
+                if k in allowed_params
+            }
             
+            if cleaned_params:
+                secure_url += '?' + urllib.parse.urlencode(cleaned_params)
+        
         return redirect(secure_url, code=301)
 
 @app.after_request
