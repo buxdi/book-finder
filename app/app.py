@@ -103,43 +103,51 @@ def before_request():
     if request.is_secure or app.config['ENV'] == 'development':
         return
 
-    # Liste des chemins autorisés pour la redirection
-    ALLOWED_PATHS = {'/', '/search', '/about', '/contact'}
+    # Liste des routes autorisées et leur fonction correspondante
+    ALLOWED_ROUTES = {
+        '/': 'index',
+        '/search': 'search',
+        '/about': 'about',
+        '/contact': 'contact'
+    }
     
-    # Rediriger vers HTTPS en production de manière sécurisée
+    # Rediriger vers HTTPS en production
     if app.config['ENV'] == 'production':
         if request.host not in app.config['ALLOWED_HOSTS']:
             app.logger.warning(f'Tentative d\'accès avec hôte non autorisé: {request.host}')
             return jsonify({"error": "Hôte non autorisé"}), 403
             
         # Valider le chemin
-        if request.path not in ALLOWED_PATHS:
+        if request.path not in ALLOWED_ROUTES:
             app.logger.warning(f'Tentative d\'accès à un chemin non autorisé: {request.path}')
-            return redirect('/', code=302)
+            return redirect(url_for('index'), code=302)
             
         app.logger.info(f'Redirection HTTPS pour {request.host}')
         
-        # Construction sécurisée de l'URL HTTPS
-        secure_url = 'https://{}{}'.format(
-            request.host,
-            request.path
-        )
+        # Récupérer le nom de la fonction pour la route
+        endpoint = ALLOWED_ROUTES.get(request.path)
         
         # Validation et nettoyage des paramètres de requête
-        if request.query_string:
-            # Ne permettre que les paramètres autorisés
-            allowed_params = {'q', 'lang', 'page', 'sort'}
-            query_params = request.args.copy()
-            cleaned_params = {
-                k: bleach.clean(v) 
-                for k, v in query_params.items() 
-                if k in allowed_params
-            }
-            
-            if cleaned_params:
-                secure_url += '?' + urllib.parse.urlencode(cleaned_params)
+        allowed_params = {'q', 'lang', 'page', 'sort'}
+        query_params = request.args.copy()
+        cleaned_params = {
+            k: bleach.clean(v) 
+            for k, v in query_params.items() 
+            if k in allowed_params
+        }
         
-        return redirect(secure_url, code=301)
+        # Utiliser url_for pour générer une URL sécurisée
+        try:
+            secure_url = url_for(
+                endpoint,
+                _external=True,
+                _scheme='https',
+                **cleaned_params
+            )
+            return redirect(secure_url, code=301)
+        except Exception as e:
+            app.logger.error(f'Erreur lors de la génération de l\'URL: {str(e)}')
+            return redirect(url_for('index', _external=True, _scheme='https'), code=302)
 
 @app.after_request
 def add_security_headers(response):
