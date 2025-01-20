@@ -166,8 +166,6 @@ def ratelimit_handler(e):
     return jsonify(error="Trop de requêtes. Veuillez réessayer plus tard."), 429
 
 if __name__ == '__main__':
-    # En production, utiliser un serveur WSGI comme gunicorn
-    if app.debug:
-        app.run(debug=True, host='0.0.0.0', port=5002)
-    else:
-        app.run(host='0.0.0.0', port=5002, ssl_context='adhoc')
+    # En mode développement
+    app.debug = True
+    app.run(debug=True, host='0.0.0.0', port=5002)
