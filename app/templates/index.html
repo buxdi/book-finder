@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Book Finder - {{ translations.search }}{% endblock %}
+
+{% block content %}
+<div class="container d-flex flex-column flex-grow-1">
+    <div class="row flex-grow-1 justify-content-center align-items-center" id="main-row">
+        <div class="col-md-8">
+            <div id="search-container" class="text-center">
+                <h1 class="main-title">
+                    <span class="book-icon"><i class="fas fa-book"></i></span>Find <span style="color: #3498db;">a</span> Book
+                </h1>
+                <form id="searchForm" class="mb-4">
+                    <div class="input-group mb-3">
+                        <input type="text" id="searchInput" name="q" class="form-control form-control-lg" 
+                               placeholder="{{ translations.search_placeholder }}" required>
+                        <select id="languageSelect" class="form-select form-select-lg" style="max-width: 150px;">
+                            {% for code, name in languages.items() %}
+                            <option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-search"></i> {{ translations.search }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="results" class="mt-4"></div>
+
+            <!-- Template pour les résultats -->
+            <template id="book-template">
+                <a href="#" class="book-url text-decoration-none">
+                    <div class="card mb-3 hover-shadow">
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <div class="text-truncate text-primary"></div>
+                            </div>
+                            <h5 class="card-title">
+                                <span class="book-title"></span>
+                            </h5>
+                            <h6 class="card-subtitle mb-2 text-muted book-author"></h6>
+                            <div class="series-info text-muted small mb-2" style="display: none;">
+                                📚 Série: <span class="series-name"></span> (Volume <span class="series-volume"></span>)
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </template>
+
+            <div id="loading" class="text-center d-none">
+                <div class="typewriter">
+                    <span class="typing-text">Chargement....</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.hover-shadow {
+    transition: box-shadow 0.3s ease-in-out;
+}
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Styles responsives */
+@media (max-width: 768px) {
+    .main-title {
+        font-size: 2rem; /* Réduire la taille de la police sur les petits écrans */
+    }
+}
+</style>
+<script>
+const debug = {{ config.DEBUG|tojson }};
+
+// Fonction pour extraire un extrait du texte
+function getExcerpt(text, maxLength = 200) {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength).trim() + '...';
+}
+
+document.getElementById('searchForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const query = document.getElementById('searchInput').value;
+    const language = document.getElementById('languageSelect').value;
+    const loading = document.getElementById('loading');
+    const results = document.getElementById('results');
+    const searchContainer = document.getElementById('search-container');
+    
+    // Afficher le spinner
+    loading.classList.remove('d-none');
+    results.innerHTML = '';
+    
+    try {
+        const response = await fetch(`/search?q=${encodeURIComponent(query)}&lang=${language}`);
+        const data = await response.json();
+        
+        // Déplacer la barre de recherche en haut
+        if (data && data.length > 0) {
+            document.getElementById('main-row').classList.remove('align-items-center');
+            document.getElementById('main-row').classList.add('align-items-start', 'mt-4');
+        }
+        
+        // Vérifier si data est un tableau
+        if (Array.isArray(data)) {
+            if (data.length === 0) {
+                results.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> {{ translations.no_results }}
+                    </div>`;
+            } else {
+                const resultsHtml = data.map(book => {
+                    const template = document.querySelector('#book-template');
+                    const bookElement = template.content.cloneNode(true);
+                    
+                    const urlLink = bookElement.querySelector('.book-url');
+                    urlLink.href = book.url;
+                    
+                    bookElement.querySelector('.text-truncate').textContent = book.url;
+                    bookElement.querySelector('.book-title').textContent = book.title;
+                    bookElement.querySelector('.book-author').textContent = book.author;
+                    
+                    if (book.series_name) {
+                        const seriesInfo = bookElement.querySelector('.series-info');
+                        seriesInfo.style.display = 'block';
+                        bookElement.querySelector('.series-name').textContent = book.series_name;
+                        bookElement.querySelector('.series-volume').textContent = book.series_volume;
+                    }
+                    
+                    return bookElement;
+                });
+                
+                results.innerHTML = '';
+                resultsHtml.forEach(element => results.appendChild(element));
+            }
+        } else if (data.error) {
+            // Afficher le message d'erreur du serveur
+            results.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> {{ translations.error }}: ${data.error}
+                </div>`;
+        } else {
+            // Erreur inattendue
+            throw new Error('Format de réponse invalide');
+        }
+    } catch (error) {
+        results.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i> {{ translations.error }}: ${error.message}
+            </div>`;
+        if (debug) {
+            console.error('Erreur de recherche:', error);
+        }
+    } finally {
+        loading.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}
