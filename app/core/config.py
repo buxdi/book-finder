@@ -8,21 +8,27 @@ class Config:
     """Configuration globale de l'application"""
     
     # Configuration de l'environnement
-    ENV = os.getenv('FLASK_ENV', 'production')
-    DEBUG = ENV == 'development'
+    ENV = os.getenv('FLASK_ENV', 'production')  # Production par défaut
+    DEBUG = False  # Toujours False par défaut
+    TESTING = False
     
     # Configuration de sécurité
     if ENV == 'development':
         SECRET_KEY = 'dev-key-for-testing'
         SSL_CONTEXT = None
         SESSION_COOKIE_SECURE = False
+        ALLOWED_HOSTS = {'localhost', '127.0.0.1'}
     else:
         # En production, ces valeurs doivent être définies dans .env
         SECRET_KEY = os.getenv('SECRET_KEY')
+        if not SECRET_KEY:
+            raise ValueError('SECRET_KEY must be set in production')
+            
         SSL_CERT_PATH = os.getenv('SSL_CERT_PATH')
         SSL_KEY_PATH = os.getenv('SSL_KEY_PATH')
         SSL_CONTEXT = (SSL_CERT_PATH, SSL_KEY_PATH) if SSL_CERT_PATH and SSL_KEY_PATH else 'adhoc'
         SESSION_COOKIE_SECURE = True
+        ALLOWED_HOSTS = {'book-finder.com', 'www.book-finder.com'}
 
     # Configuration commune
     SESSION_COOKIE_HTTPONLY = True
@@ -35,7 +41,8 @@ class Config:
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'SAMEORIGIN',
         'X-XSS-Protection': '1; mode=block',
-        'Referrer-Policy': 'strict-origin-when-cross-origin'
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';"
     }
     
     # Configuration des langues

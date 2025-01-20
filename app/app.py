@@ -101,12 +101,26 @@ def before_request():
     """Vérifications avant chaque requête"""
     if request.is_secure or app.config['ENV'] == 'development':
         return
+
+    # Liste des hôtes autorisés
+    ALLOWED_HOSTS = {'book-finder.com', 'www.book-finder.com'}
     
-    # Rediriger vers HTTPS en production
+    # Rediriger vers HTTPS en production de manière sécurisée
     if app.config['ENV'] == 'production':
-        app.logger.info(f'Redirection HTTPS pour {request.host}')  # Ne pas logger l'URL complète
-        url = request.url.replace('http://', 'https://', 1)
-        return redirect(url, code=301)
+        if request.host not in ALLOWED_HOSTS:
+            app.logger.warning(f'Tentative d\'accès avec hôte non autorisé: {request.host}')
+            return jsonify({"error": "Hôte non autorisé"}), 403
+            
+        app.logger.info(f'Redirection HTTPS pour {request.host}')
+        # Construction sécurisée de l'URL HTTPS
+        secure_url = 'https://{}{}'.format(
+            request.host,
+            request.path
+        )
+        if request.query_string:
+            secure_url += '?' + request.query_string.decode('utf-8')
+            
+        return redirect(secure_url, code=301)
 
 @app.after_request
 def add_security_headers(response):
@@ -191,10 +205,13 @@ def ratelimit_handler(e):
 
 if __name__ == '__main__':
     # Configuration selon l'environnement
-    if Config.ENV == 'development':
-        app.run(debug=True, host='0.0.0.0', port=5002)
+    port = int(os.getenv('PORT', 5002))
+    if app.config['ENV'] == 'development':
+        app.run(host='127.0.0.1', port=port)
     else:
         # En production, utiliser le SSL et les paramètres de sécurité
-        app.run(host='0.0.0.0', 
-               port=int(os.getenv('PORT', 5002)),
-               ssl_context=Config.SSL_CONTEXT)
+        ssl_context = app.config.get('SSL_CONTEXT', None)
+        app.run(host='127.0.0.1', 
+               port=port,
+               ssl_context=ssl_context,
+               debug=False)  # Forcer debug=False en production
