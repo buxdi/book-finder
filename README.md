@@ -1,6 +1,8 @@
 # Book Finder
 
-Application web pour rechercher des livres gratuits à travers différentes sources en ligne.
+Un moteur de recherche pour trouver des livres gratuits à travers différentes sources en ligne.
+
+![la page d'accueil](screenshot/screenshot.png)
 
 ## Description
 
