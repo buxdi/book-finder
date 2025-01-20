@@ -13,6 +13,8 @@ from flask_limiter.util import get_remote_address
 import os
 import sys
 import bleach
+import logging
+from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 
 # Charger les variables d'environnement
@@ -29,6 +31,23 @@ app.config.from_object(Config)
 
 # Configurer la clé secrète depuis l'environnement
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+
+# Configuration du logging
+if app.config['ENV'] == 'production':
+    # S'assurer que le répertoire de logs existe
+    os.makedirs('/var/log/book-finder', exist_ok=True)
+    
+    # Configurer le logging de l'application
+    file_handler = RotatingFileHandler('/var/log/book-finder/app.log', 
+                                     maxBytes=1024 * 1024,  # 1MB
+                                     backupCount=10)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.INFO)
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Book Finder startup')
 
 # Initialiser les extensions de sécurité
 talisman = Talisman(
@@ -80,25 +99,27 @@ search_engine = SearchEngine()
 @app.before_request
 def before_request():
     """Vérifications avant chaque requête"""
-    # Forcer HTTPS en production
-    if not request.is_secure and not app.debug:
+    if request.is_secure or app.config['ENV'] == 'development':
+        return
+    
+    # Rediriger vers HTTPS en production
+    if app.config['ENV'] == 'production':
+        app.logger.info(f'Redirection HTTPS pour {request.host}')  # Ne pas logger l'URL complète
         url = request.url.replace('http://', 'https://', 1)
-        return redirect(url), 301
+        return redirect(url, code=301)
 
 @app.after_request
 def add_security_headers(response):
     """Ajouter des en-têtes de sécurité supplémentaires"""
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
+    for key, value in app.config['SECURITY_HEADERS'].items():
+        response.headers[key] = value
     return response
 
 @app.route('/')
 @limiter.limit("60 per minute")
 def index():
     """Page d'accueil"""
+    app.logger.info(f'Accès à la page d\'accueil depuis {request.remote_addr}')
     lang = bleach.clean(request.args.get('lang', 'fr'))
     if lang not in Config.SUPPORTED_LANGUAGES:
         lang = Config.DEFAULT_LANGUAGE
@@ -126,8 +147,9 @@ def index():
 @limiter.limit("30 per minute")
 async def search():
     """Endpoint de recherche"""
-    # Nettoyer et valider les entrées
     query = bleach.clean(request.args.get('q', ''))
+    # Ne pas logger la requête complète, uniquement sa longueur pour la sécurité
+    app.logger.info(f'Recherche depuis {request.remote_addr} - longueur: {len(query)}')
     lang = bleach.clean(request.args.get('lang', ''))
     
     if not query or lang not in Config.SUPPORTED_LANGUAGES:
@@ -135,6 +157,7 @@ async def search():
     
     try:
         results = await search_engine.search_async(query, lang)
+        app.logger.info(f'Résultats trouvés: {len(results)}')
         # Nettoyer les résultats avant de les renvoyer
         clean_results = []
         for result in results:
@@ -143,13 +166,13 @@ async def search():
                 'author': bleach.clean(result.get('author', '')),
                 'url': bleach.clean(result.get('url', '')),
                 'source': bleach.clean(result.get('source', '')),
-                'series_name': bleach.clean(result.get('series_name', '')),
-                'series_volume': bleach.clean(str(result.get('series_volume', '')))
+                'language': bleach.clean(result.get('language', ''))
             })
         return jsonify(clean_results)
     except Exception as e:
-        app.logger.error(f"Erreur lors de la recherche: {str(e)}")
-        return jsonify({'error': 'Une erreur est survenue'}), 500
+        # Ne pas logger l'exception complète qui pourrait contenir des données sensibles
+        app.logger.error(f'Erreur pendant la recherche depuis {request.remote_addr}: {type(e).__name__}')
+        return jsonify({"error": "Une erreur est survenue"}), 500
 
 @app.route('/favicon.ico')
 def favicon():
@@ -163,6 +186,7 @@ def favicon():
 @app.errorhandler(429)
 def ratelimit_handler(e):
     """Gestionnaire pour les limites de taux dépassées"""
+    app.logger.warning(f'Rate limit dépassé pour {request.remote_addr}')
     return jsonify(error="Trop de requêtes. Veuillez réessayer plus tard."), 429
 
 if __name__ == '__main__':
