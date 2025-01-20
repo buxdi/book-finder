@@ -8,12 +8,15 @@ Book Finder est une application web qui permet de rechercher des livres gratuits
 
 - Library Genesis
 - Open Library
+- Gallica
 - Project Gutenberg
+
+Futurs ajouts :
+
 - Z-Library
 - Standard Ebooks
 - Feedbooks
 - Manybooks
-- Gallica
 - Internet Archive
 - Wikisource
 
@@ -21,7 +24,7 @@ Book Finder est une application web qui permet de rechercher des livres gratuits
 
 1. Cloner le dépôt :
 ```bash
-git clone https://github.com/yourusername/book-finder.git
+git clone https://github.com/buxdi/book-finder.git
 cd book-finder
 ```
 
