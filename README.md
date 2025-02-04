@@ -5,14 +5,12 @@
 ## Description
 
 Book Finder est un moteur de recherche qui permet de trouver des livres gratuits sur différentes plateformes en ligne, notamment :
-
 - Library Genesis
 - Open Library
 - Gallica
 - Project Gutenberg
 
-Futurs ajouts :
-
+Ajouts à venir :
 - Z-Library
 - Standard Ebooks
 - Feedbooks
