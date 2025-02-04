@@ -1,5 +1,4 @@
-# Book Finder
-![Status](https://img.shields.io/badge/status-alpha-orange) **Avertissement** : Ce projet est encore en développement. Certaines fonctionnalités peuvent être incomplètes ou instables.
+# Book Finder ![Status](https://img.shields.io/badge/status-alpha-orange)
 
 ![la page d'accueil](screenshot/screenshot.png)
 
@@ -66,6 +65,9 @@ book_finder/
 └── README.md
 ```
 
-## Licence
+## Avertissements
+- Ce projet n'est pas encore finalisé, certaines fonctionnalités sont en phase de test.
+- Ne l'utilisez pas dans un environnement de production.
 
+## Licence
 MIT
