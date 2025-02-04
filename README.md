@@ -63,9 +63,5 @@ book_finder/
 └── README.md
 ```
 
-## Avertissements
-- Ce projet n'est pas encore finalisé, certaines fonctionnalités sont en phase de test.
-- Ne l'utilisez pas dans un environnement de production.
-
 ## Licence
 MIT
