@@ -1,4 +1,5 @@
 # Book Finder
+![Status](https://img.shields.io/badge/status-alpha-orange) **Avertissement** : Ce projet est encore en développement. Certaines fonctionnalités peuvent être incomplètes ou instables.
 
 ![la page d'accueil](screenshot/screenshot.png)
 
